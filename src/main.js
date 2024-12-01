@@ -50,6 +50,24 @@ function formatToHectar(number) {
 }
 
 
+function renderEnergyStates(data) {
+  const stateListElement = document.querySelector('#stateList')
+
+  data.forEach((element) => {
+    const listElement = document.createElement('li')
+    const buttonElement = document.createElement('button')
+    const buttonTextNode = document.createTextNode(element.name)
+
+    buttonElement.id = element.id
+    buttonElement.onclick = () => selectOption([element.id, element.name])
+    buttonElement.append(buttonTextNode)
+    buttonElement.classList.add('w-full', 'text-left', 'px-3', 'py-2', 'bg-white', 'text-gray-800', 'hover:bg-blue-600', 'hover:text-white', 'focus:text-white', 'focus:outline-none')
+    listElement.appendChild(buttonElement)
+    stateListElement.appendChild(listElement)
+  })
+}
+
+
 function renderEnergyMeta(data) {
   document.querySelector('#sidebar').scrollTo({
     top: 0
@@ -113,6 +131,7 @@ function renderEnergyMeta(data) {
     detailOutput += `<li><strong>Herkunft</strong><br>${data['mapping_origin']}</li>`
   }
   else if (data['mapping_origin'] !== null && data['mapping_origin_description'] !== null) {
+    detailOutput += `<li><strong>Herkunft</strong><br>${data['mapping_origin']}: ${data['mapping_origin_description']}</li>`
     detailOutput += `<li><strong>Herkunft</strong><br>${data['mapping_origin']}: ${data['mapping_origin_description']}</li>`
   }
 
@@ -193,14 +212,14 @@ function cleanEnergyMeta() {
 }
 
 
-function fetchEnergyMeta(lat, lng) {
-  const url = `https://api.oklabflensburg.de/biotope/v1/point?lat=${lat}&lng=${lng}`
+function fetchEnergyStates(lat, lng) {
+  const url = 'https://api.oklabflensburg.de/energy/v1/meta/state'
 
   try {
     fetch(url, {
       method: 'GET'
     }).then((response) => response.json()).then((data) => {
-      renderEnergyMeta(data)
+      renderEnergyStates(data)
     }).catch(function (error) {
       cleanEnergyMeta()
     })
@@ -238,6 +257,8 @@ function handleWindowSize() {
 
 
 document.addEventListener('DOMContentLoaded', function () {
+  fetchEnergyStates()
+
   L.tileLayer('https://tiles.oklabflensburg.de/sgm/{z}/{x}/{y}.png', {
     maxZoom: 20,
     tileSize: 256,
@@ -254,8 +275,6 @@ document.addEventListener('DOMContentLoaded', function () {
   map.on('click', function (e) {
     const lat = e.latlng.lat
     const lng = e.latlng.lng
-
-    fetchEnergyMeta(lat, lng)
   })
 
   document.querySelector('#sidebarCloseButton').addEventListener('click', function (e) {
@@ -314,4 +333,3 @@ window.addEventListener('popstate', (event) => {
 window.addEventListener('resize', handleWindowSize)
 
 // Trigger the function initially to handle the initial screen size
-handleWindowSize()

@@ -67,7 +67,7 @@
         </button>
         </div>
 
-        <h3 class="font-bold text-lg lg:text-xl block mb-2">Region oder Gebiet</h3>
+        <h3 class="font-bold text-lg lg:text-xl block mb-2">Bundesland</h3>
 
         <button id="dropdownButton" class="w-full bg-white hover:bg-gray-100 text-gray-800 py-2 px-4 rounded-sm shadow flex justify-between items-center" onclick="toggleDropdown()">
           <span id="dropdownSelected">Region auswählen</span>
@@ -76,20 +76,8 @@
           </svg>
         </button>
 
-        <div id="dropdownMenu" class="hidden absolute mt-1 mr-3 w-full bg-white border border-gray-300 rounded-xs shadow-lg z-10 transition transform duration-200 ease-out">
-          <ul class="py-1 text-gray-700">
-            <li>
-              <button class="w-full text-left px-3 py-2 bg-white text-gray-800 hover:bg-blue-600 hover:text-white focus:text-white focus:outline-none"
-                onclick="selectOption(['all', 'Alle anzeigen ausgewählt'])">Alle anzeigen</button>
-            </li>
-            <li>
-              <button class="w-full text-left px-3 py-2 bg-white text-gray-800 hover:bg-blue-600 hover:text-white focus:text-white focus:outline-none"
-                onclick="selectOption(['1', 'Windparks anzeigen ausgewählt'])">Windparks anzeigen</button>
-            </li>
-            <li>
-              <button class="w-full text-left px-3 py-2 bg-white text-gray-800 hover:bg-blue-600 hover:text-white focus:text-white focus:outline-none"
-                onclick="selectOption(['2', 'Solarenergie anzeigen ausgewählt'])">Solarenergie anzeigen</button>
-            </li>
+        <div id="dropdownMenu" class="hidden absolute mt-1 mr-3 w-full bg-white border border-gray-300 rounded-xs shadow-lg z-10 transition transform duration-200 ease-out max-h-72 overflow-scroll">
+          <ul id="stateList" class="py-1 text-gray-700">
           </ul>
         </div>
       </div>
