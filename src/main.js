@@ -1,6 +1,5 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Env } from './env.js'
 
 import markerDefault from 'url:../static/marker-icon-default.webp'
 import markerSelected from 'url:../static/marker-icon-active.webp'
@@ -31,6 +30,8 @@ const selectedIcon = L.icon({
 const center = [54.16457533, 9.92517113]
 
 let currentLayer = null
+let updateToken = null // Token to track the latest request
+
 
 var map = L.map('map', {
   zoomControl: false
@@ -318,50 +319,60 @@ async function fetchEnergyUnits(municipalityKey) {
 
 
 async function renderEnergyUnits(mapReference, municipalityKey) {
-  if (currentLayer) {
-    mapReference.removeLayer(currentLayer)
-  }
+  const token = updateToken = Symbol('renderEnergyUnitsToken')
 
-  const items = await fetchEnergyUnits(municipalityKey)
-
-  if (items) {
-    let geoJsonData = {
-      'type': 'FeatureCollection',
-      'features': []
+  try {
+    // Fetch energy units
+    const items = await fetchEnergyUnits(municipalityKey)
+    if (!items) {
+      console.error('Bounding box could not be fetched.')
+      return
     }
 
-    items.forEach((item) => {
-      console.log(item)
-
-      if (item['geojson'] !== null) {
-        const feature = {
-          'type': 'Feature',
-          'geometry': {
-            'type': item['geojson']['type'],
-            'coordinates': item['geojson']['coordinates']
+    // Prepare GeoJSON data
+    const geoJsonData = {
+      type: 'FeatureCollection',
+      features: items
+        .filter((item) => item.geojson !== null)
+        .map((item) => ({
+          type: 'Feature',
+          geometry: {
+            type: item.geojson.type,
+            coordinates: item.geojson.coordinates
           },
-          'properties': {}
-        }
+          properties: {}
+        }))
+    }
 
-        geoJsonData.features.push(feature)
-      }
-    })
-
-    currentLayer = L.geoJSON(geoJsonData, {
+    // Create a new GeoJSON layer
+    const newLayer = L.geoJSON(geoJsonData, {
       pointToLayer(feature, latlng) {
         const label = 'tbd. label'
-
         return L.marker(latlng, { icon: defaultIcon }).bindTooltip(label, {
           permanent: false,
           direction: 'top'
-        }).openTooltip()
+        })
       }
-    }).addTo(map)
+    })
 
-    map.fitBounds(currentLayer.getBounds())
+    // Fit the map to the new layer's bounds
+    mapReference.fitBounds(newLayer.getBounds())
+
+    // Update `currentLayer` only if this is the latest request
+    if (updateToken === token) {
+      // Remove the old layer before updating
+      if (currentLayer) {
+        mapReference.removeLayer(currentLayer)
+      }
+      currentLayer = newLayer.addTo(mapReference) // Assign the new layer
+    }
+    else {
+      // If this request is outdated, remove the new layer
+      mapReference.removeLayer(newLayer)
+    }
   }
-  else {
-    console.error('Bounding box could not be fetched.')
+  catch (error) {
+    console.error('An error occurred during the render operation:', error)
   }
 }
 
