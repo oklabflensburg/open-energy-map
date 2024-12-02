@@ -265,24 +265,113 @@ document.addEventListener('DOMContentLoaded', function () {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="dc:rights">OpenStreetMap</a> contributors'
   }).addTo(map)
 
-  L.tileLayer('https://tiles.oklabflensburg.de/bksh/{z}/{x}/{y}.png', {
-    opacity: 0.8,
-    maxZoom: 20,
-    maxNativeZoom: 20,
-    attribution: '&copy; <a href="https://www.schleswig-holstein.de/DE/landesregierung/ministerien-behoerden/LFU" target="_blank" rel="dc:rights">LfU SH</a>/<a href="https://www.govdata.de/dl-de/by-2-0" target="_blank" rel="dc:rights">dl-de/by-2-0</a>'
-  }).addTo(map)
-
-  map.on('click', function (e) {
-    const lat = e.latlng.lat
-    const lng = e.latlng.lng
-  })
-
   document.querySelector('#sidebarCloseButton').addEventListener('click', function (e) {
     e.preventDefault()
     cleanEnergyMeta()
 
     history.replaceState({ screen: 'home' }, '', '/')
   })
+})
+
+
+async function fetchEnergyUnits(municipalityKey) {
+  const url = `https://api.oklabflensburg.de/energy/v1/unit/wind/key?municipality_key=${municipalityKey}`
+
+  try {
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`Error fetching energy unit WIND got http status code: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log(data)
+
+    return data
+  }
+  catch (error) {
+    console.error('Failed to fetch bounding box:', error)
+
+    return null
+  }
+}
+
+
+async function renderEnergyUnits(mapReference, municipalityKey) {
+  const bbox = await fetchEnergyUnits(municipalityKey)
+
+  if (bbox) {
+    console.log(bbox)
+  }
+  else {
+    console.error('Bounding box could not be fetched.')
+  }
+}
+
+
+const searchBox = document.getElementById('searchBox')
+const suggestionsList = document.getElementById('suggestionsList')
+
+const updateSuggestions = (suggestions) => {
+  suggestionsList.innerHTML = ''
+
+  if (suggestions.length === 0) {
+    suggestionsList.classList.add('hidden')
+
+    return
+  }
+
+  suggestions.forEach((item) => {
+    const li = document.createElement('li')
+
+    li.id = item.municipality_key
+    li.textContent = `${item.geographical_name} (${item.region_name})`
+    li.className = 'px-4 py-2 cursor-pointer hover:bg-blue-500 hover:text-white'
+
+    li.addEventListener('click', () => {
+      searchBox.value = item.geographical_name
+      suggestionsList.classList.add('hidden')
+      renderEnergyUnits(map, item.municipality_key)
+    })
+
+    suggestionsList.appendChild(li)
+  })
+
+  suggestionsList.classList.remove('hidden')
+}
+
+
+const fetchSuggestions = async (query) => {
+  if (!query) {
+    suggestionsList.classList.add('hidden')
+    suggestionsList.innerHTML = ''
+
+    return
+  }
+
+  try {
+    const response = await fetch(`https://api.oklabflensburg.de/administrative/v1/municipality/search?query=${query}`)
+
+    if (!response.ok) {
+      throw new Error('Error fetching suggestions')
+    }
+
+    const data = await response.json()
+
+    updateSuggestions(data || [])
+  }
+  catch (error) {
+    console.error('Error:', error)
+  }
+}
+
+searchBox.addEventListener('input', (e) => fetchSuggestions(e.target.value))
+
+// Hide suggestions when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#searchBox') && !e.target.closest('#suggestionsList')) {
+    suggestionsList.classList.add('hidden')
+  }
 })
 
 
