@@ -309,10 +309,12 @@ async function renderEnergyUnits(mapReference, municipalityKey) {
 
 
 function moveToBoundingBox(mapReference, bbox) {
-  const bounds = [
-    [bbox['ymin'], bbox['xmin']],
-    [bbox['ymax'], bbox['xmax']]
-  ]
+  const { xmin, ymin, xmax, ymax } = bbox
+
+  const bounds = L.latLngBounds(
+    [ymin, xmin],
+    [ymax, xmax]
+  )
 
   mapReference.fitBounds(bounds)
 }
