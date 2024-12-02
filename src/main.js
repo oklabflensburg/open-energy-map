@@ -340,14 +340,17 @@ async function renderEnergyUnits(mapReference, municipalityKey) {
             type: item.geojson.type,
             coordinates: item.geojson.coordinates
           },
-          properties: {}
+          properties: {
+            unitName: item.unit_name
+          }
         }))
     }
 
     // Create a new GeoJSON layer
     const newLayer = L.geoJSON(geoJsonData, {
       pointToLayer(feature, latlng) {
-        const label = 'tbd. label'
+        const label = feature.properties.unitName
+
         return L.marker(latlng, { icon: defaultIcon }).bindTooltip(label, {
           permanent: false,
           direction: 'top'
@@ -423,7 +426,7 @@ const updateSuggestions = (suggestions) => {
 
 
 const fetchSuggestions = async (query) => {
-  if (!query) {
+  if (!query || query.length < 2) {
     suggestionsList.classList.add('hidden')
     suggestionsList.innerHTML = ''
 
