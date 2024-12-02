@@ -2,9 +2,30 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Env } from './env.js'
 
+import markerDefault from 'url:../static/marker-icon-default.webp'
+import markerSelected from 'url:../static/marker-icon-active.webp'
+
+import { Env } from './env.js'
+
 
 const env = new Env()
 env.injectLinkContent('.contact-mail', 'mailto:', '', env.contactMail, 'E-Mail')
+
+
+const defaultIcon = L.icon({
+  iconUrl: markerDefault,
+  iconSize: [30, 36],
+  iconAnchor: [15, 36],
+  tooltipAnchor: [0, -37]
+})
+
+
+const selectedIcon = L.icon({
+  iconUrl: markerSelected,
+  iconSize: [30, 36],
+  iconAnchor: [15, 36],
+  tooltipAnchor: [0, -37]
+})
 
 
 const center = [54.16457533, 9.92517113]
@@ -297,10 +318,47 @@ async function fetchEnergyUnits(municipalityKey) {
 
 
 async function renderEnergyUnits(mapReference, municipalityKey) {
-  const data = await fetchEnergyUnits(municipalityKey)
+  if (currentLayer) {
+    mapReference.removeLayer(currentLayer)
+  }
 
-  if (data) {
-    console.log(data)
+  const items = await fetchEnergyUnits(municipalityKey)
+
+  if (items) {
+    let geoJsonData = {
+      'type': 'FeatureCollection',
+      'features': []
+    }
+
+    items.forEach((item) => {
+      console.log(item)
+
+      if (item['geojson'] !== null) {
+        const feature = {
+          'type': 'Feature',
+          'geometry': {
+            'type': item['geojson']['type'],
+            'coordinates': item['geojson']['coordinates']
+          },
+          'properties': {}
+        }
+
+        geoJsonData.features.push(feature)
+      }
+    })
+
+    currentLayer = L.geoJSON(geoJsonData, {
+      pointToLayer(feature, latlng) {
+        const label = 'tbd. label'
+
+        return L.marker(latlng, { icon: defaultIcon }).bindTooltip(label, {
+          permanent: false,
+          direction: 'top'
+        }).openTooltip()
+      }
+    }).addTo(map)
+
+    map.fitBounds(currentLayer.getBounds())
   }
   else {
     console.error('Bounding box could not be fetched.')
