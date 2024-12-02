@@ -19,6 +19,8 @@
     "parcel": "^2.13.2"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.16.0",
     "@parcel/config-default": "^2.13.2",
     "@parcel/transformer-raw": "^2.13.2",
     "eslint": "^9.16.0",

@@ -285,7 +285,6 @@ async function fetchEnergyUnits(municipalityKey) {
     }
 
     const data = await response.json()
-    console.log(data)
 
     return data
   }
@@ -298,14 +297,24 @@ async function fetchEnergyUnits(municipalityKey) {
 
 
 async function renderEnergyUnits(mapReference, municipalityKey) {
-  const bbox = await fetchEnergyUnits(municipalityKey)
+  const data = await fetchEnergyUnits(municipalityKey)
 
-  if (bbox) {
-    console.log(bbox)
+  if (data) {
+    console.log(data)
   }
   else {
     console.error('Bounding box could not be fetched.')
   }
+}
+
+
+function moveToBoundingBox(mapReference, bbox) {
+  const bounds = [
+    [bbox['ymin'], bbox['xmin']],
+    [bbox['ymax'], bbox['xmax']]
+  ]
+
+  mapReference.fitBounds(bounds)
 }
 
 
@@ -332,6 +341,7 @@ const updateSuggestions = (suggestions) => {
       searchBox.value = item.geographical_name
       suggestionsList.classList.add('hidden')
       renderEnergyUnits(map, item.municipality_key)
+      moveToBoundingBox(map, item.bbox)
     })
 
     suggestionsList.appendChild(li)

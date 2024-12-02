@@ -15,6 +15,12 @@ importers:
         specifier: ^2.13.2
         version: 2.13.2(@swc/helpers@0.5.15)(postcss@8.4.49)(svgo@3.3.2)
     devDependencies:
+      '@eslint/eslintrc':
+        specifier: ^3.2.0
+        version: 3.2.0
+      '@eslint/js':
+        specifier: ^9.16.0
+        version: 9.16.0
       '@parcel/config-default':
         specifier: ^2.13.2
         version: 2.13.2(@parcel/core@2.13.2(@swc/helpers@0.5.15))(@swc/helpers@0.5.15)(postcss@8.4.49)(svgo@3.3.2)
