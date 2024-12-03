@@ -81,7 +81,7 @@ function renderEnergyStates(data) {
     const buttonTextNode = document.createTextNode(element.name)
 
     buttonElement.id = element.id
-    buttonElement.onclick = () => selectOption([element.id, element.name])
+    buttonElement.onclick = () => selectOption([element.id, element.name, element.bbox])
     buttonElement.append(buttonTextNode)
     buttonElement.classList.add('w-full', 'text-left', 'px-3', 'py-2', 'bg-white', 'text-gray-800', 'hover:bg-blue-600', 'hover:text-white', 'focus:text-white', 'focus:outline-none')
     listElement.appendChild(buttonElement)
@@ -472,6 +472,7 @@ function toggleDropdown() {
 function selectOption(option) {
   dropdownSelected.textContent = option[1]
   dropdownMenu.classList.add('hidden')
+  moveToBoundingBox(map, option[2])
 }
 
 
