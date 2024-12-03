@@ -28,18 +28,43 @@ const selectedIcon = L.icon({
 
 
 const center = [54.16457533, 9.92517113]
+const searchBox = document.querySelector('#searchBox')
+const suggestionsList = document.querySelector('#suggestionsList')
+const dropdownStateList = document.querySelector('#dropdownStateList')
+const dropdownStateListWrapper = document.querySelector('#dropdownStateListWrapper')
+const dropdownStateListSelected = document.querySelector('#dropdownStateListSelected')
+const dropdownStateListButton = document.querySelector('#dropdownStateListButton')
+const selectedStateTarget = { value: null }
 
+
+let updateToken = null
 let currentLayer = null
-let updateToken = null // Token to track the latest request
+let stateList = null
+let selectedMunicipality = null
 
 
-var map = L.map('map', {
+const map = L.map('map', {
   zoomControl: false
 }).setView(center, 12)
 
-var zoomControl = L.control.zoom({
+
+const zoomControl = L.control.zoom({
   position: 'bottomright'
 }).addTo(map)
+
+
+const selectedStateHandler = {
+  set(obj, prop, value) {
+    dropdownStateListSelected.textContent = value.name
+
+    obj[prop] = value
+
+    return true
+  }
+}
+
+
+const observedSelectedState = new Proxy(selectedStateTarget, selectedStateHandler)
 
 
 function formatPlaceName(placeName) {
@@ -72,20 +97,43 @@ function formatToHectar(number) {
 }
 
 
-function renderEnergyStates(data) {
-  const stateListElement = document.querySelector('#stateList')
+function toggleStateListDropdown() {
+  dropdownStateListWrapper.classList.toggle('hidden')
+}
 
-  data.forEach((element) => {
+
+function updateScreen(screen) {
+  const title = 'Digitaler Energieatlas für Deutschland'
+
+  if (screen === 'home') {
+    document.querySelector('title').innerHTML = title
+    document.querySelector('meta[property="og:title"]').setAttribute('content', title)
+  }
+}
+
+
+function moveToBoundingBox(mapReference, bbox) {
+  const { xmin, ymin, xmax, ymax } = bbox
+
+  const bounds = L.latLngBounds(
+    [ymin, xmin],
+    [ymax, xmax]
+  )
+
+  mapReference.fitBounds(bounds)
+}
+
+
+function renderStateList() {
+  stateList.forEach((element) => {
     const listElement = document.createElement('li')
-    const buttonElement = document.createElement('button')
-    const buttonTextNode = document.createTextNode(element.name)
+    const listTextNode = document.createTextNode(element.name)
 
-    buttonElement.id = element.id
-    buttonElement.onclick = () => selectOption([element.id, element.name, element.bbox])
-    buttonElement.append(buttonTextNode)
-    buttonElement.classList.add('w-full', 'text-left', 'px-3', 'py-2', 'bg-white', 'text-gray-800', 'hover:bg-blue-600', 'hover:text-white', 'focus:text-white', 'focus:outline-none')
-    listElement.appendChild(buttonElement)
-    stateListElement.appendChild(listElement)
+    listElement.id = element.id
+    // listElement.onclick = () => selectStateDropdown([element.id, element.name, element.bbox])
+    listElement.append(listTextNode)
+    listElement.classList.add('w-full', 'text-left', 'px-3', 'py-2', 'bg-white', 'text-gray-800', 'hover:bg-blue-600', 'hover:text-white', 'focus:text-white', 'focus:outline-none')
+    dropdownStateList.appendChild(listElement)
   })
 }
 
@@ -94,10 +142,6 @@ function renderEnergyMeta(data) {
   document.querySelector('#sidebar').scrollTo({
     top: 0
   })
-
-  if (currentLayer) {
-    map.removeLayer(currentLayer)
-  }
 
   const geoJsonData = {
     'type': 'FeatureCollection',
@@ -118,8 +162,6 @@ function renderEnergyMeta(data) {
       fillOpacity: 0.1
     }
   }).addTo(map)
-
-  map.fitBounds(currentLayer.getBounds())
 
   let detailOutput = ''
 
@@ -234,65 +276,36 @@ function cleanEnergyMeta() {
 }
 
 
-function fetchEnergyStates(lat, lng) {
+async function fetchStateList() {
   const url = 'https://api.oklabflensburg.de/energy/v1/meta/state'
 
   try {
-    fetch(url, {
-      method: 'GET'
-    }).then((response) => response.json()).then((data) => {
-      renderEnergyStates(data)
-    }).catch(function (error) {
-      cleanEnergyMeta()
-    })
+    const response = await fetch(url, { method: 'GET' })
+
+    if (!response.ok) {
+      throw new Error('Network response was not ok')
+    }
+
+    stateList = await response.json()
+
+    renderStateList()
   }
-  catch {
+  catch (error) {
+    console.error('Error fetching state list:', error)
+
     cleanEnergyMeta()
   }
 }
 
 
-function updateScreen(screen) {
-  const title = 'Biotopkarte Schleswig-Holstein'
-
-  if (screen === 'home') {
-    document.querySelector('title').innerHTML = title
-    document.querySelector('meta[property="og:title"]').setAttribute('content', title)
-  }
-}
-
-
-function handleWindowSize() {
-  const innerWidth = window.innerWidth
-
-  if (innerWidth >= 1024) {
-    map.removeControl(zoomControl)
-
-    zoomControl = L.control.zoom({
-      position: 'topleft'
-    }).addTo(map)
-  }
-  else {
-    map.removeControl(zoomControl)
-  }
-}
-
-
 document.addEventListener('DOMContentLoaded', function () {
-  fetchEnergyStates()
+  fetchStateList()
 
   L.tileLayer('https://tiles.oklabflensburg.de/sgm/{z}/{x}/{y}.png', {
     maxZoom: 20,
     tileSize: 256,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="dc:rights">OpenStreetMap</a> contributors'
   }).addTo(map)
-
-  document.querySelector('#sidebarCloseButton').addEventListener('click', function (e) {
-    e.preventDefault()
-    cleanEnergyMeta()
-
-    history.replaceState({ screen: 'home' }, '', '/')
-  })
 })
 
 
@@ -300,10 +313,12 @@ async function fetchEnergyUnits(municipalityKey) {
   const url = `https://api.oklabflensburg.de/energy/v1/unit/wind/key?municipality_key=${municipalityKey}`
 
   try {
-    const response = await fetch(url)
+    const response = await fetch(url, { method: 'GET' })
 
     if (!response.ok) {
-      throw new Error(`Error fetching energy unit WIND got http status code: ${response.statusText}`)
+      // No energy wind units found based on municipality key
+
+      return null
     }
 
     const data = await response.json()
@@ -311,7 +326,7 @@ async function fetchEnergyUnits(municipalityKey) {
     return data
   }
   catch (error) {
-    console.error('Failed to fetch bounding box:', error)
+    console.error('Error fetching energy wind units:', error)
 
     return null
   }
@@ -322,14 +337,12 @@ async function renderEnergyUnits(mapReference, municipalityKey) {
   const token = updateToken = Symbol('renderEnergyUnitsToken')
 
   try {
-    // Fetch energy units
     const items = await fetchEnergyUnits(municipalityKey)
+
     if (!items) {
-      console.error('Bounding box could not be fetched.')
       return
     }
 
-    // Prepare GeoJSON data
     const geoJsonData = {
       type: 'FeatureCollection',
       features: items
@@ -346,7 +359,6 @@ async function renderEnergyUnits(mapReference, municipalityKey) {
         }))
     }
 
-    // Create a new GeoJSON layer
     const newLayer = L.geoJSON(geoJsonData, {
       pointToLayer(feature, latlng) {
         const label = feature.properties.unitName
@@ -358,19 +370,16 @@ async function renderEnergyUnits(mapReference, municipalityKey) {
       }
     })
 
-    // Fit the map to the new layer's bounds
-    mapReference.fitBounds(newLayer.getBounds())
+    // disable fitBounds due to stay in bbox
+    // mapReference.fitBounds(newLayer.getBounds())
 
-    // Update `currentLayer` only if this is the latest request
     if (updateToken === token) {
-      // Remove the old layer before updating
       if (currentLayer) {
         mapReference.removeLayer(currentLayer)
       }
-      currentLayer = newLayer.addTo(mapReference) // Assign the new layer
+      currentLayer = newLayer.addTo(mapReference)
     }
     else {
-      // If this request is outdated, remove the new layer
       mapReference.removeLayer(newLayer)
     }
   }
@@ -379,21 +388,6 @@ async function renderEnergyUnits(mapReference, municipalityKey) {
   }
 }
 
-
-function moveToBoundingBox(mapReference, bbox) {
-  const { xmin, ymin, xmax, ymax } = bbox
-
-  const bounds = L.latLngBounds(
-    [ymin, xmin],
-    [ymax, xmax]
-  )
-
-  mapReference.fitBounds(bounds)
-}
-
-
-const searchBox = document.getElementById('searchBox')
-const suggestionsList = document.getElementById('suggestionsList')
 
 const updateSuggestions = (suggestions) => {
   suggestionsList.innerHTML = ''
@@ -412,8 +406,15 @@ const updateSuggestions = (suggestions) => {
     li.className = 'px-4 py-2 cursor-pointer hover:bg-blue-500 hover:text-white'
 
     li.addEventListener('click', () => {
-      searchBox.value = item.geographical_name
+      const tmpState = stateList.filter((state) => state.state_id === item.municipality_key.substr(0, 2))
+
+      if (tmpState.length === 1) {
+        observedSelectedState.value = tmpState[0]
+      }
+
       suggestionsList.classList.add('hidden')
+      searchBox.value = item.geographical_name
+      selectedMunicipality = item.municipality_key
       renderEnergyUnits(map, item.municipality_key)
       moveToBoundingBox(map, item.bbox)
     })
@@ -426,6 +427,8 @@ const updateSuggestions = (suggestions) => {
 
 
 const fetchSuggestions = async (query) => {
+  selectedMunicipality = null
+
   if (!query || query.length < 2) {
     suggestionsList.classList.add('hidden')
     suggestionsList.innerHTML = ''
@@ -449,6 +452,7 @@ const fetchSuggestions = async (query) => {
   }
 }
 
+
 searchBox.addEventListener('input', (e) => fetchSuggestions(e.target.value))
 
 // Hide suggestions when clicking outside
@@ -459,30 +463,25 @@ document.addEventListener('click', (e) => {
 })
 
 
-const dropdownButton = document.getElementById('dropdownButton')
-const dropdownMenu = document.getElementById('dropdownMenu')
-const dropdownSelected = document.getElementById('dropdownSelected')
-
-
-function toggleDropdown() {
-  dropdownMenu.classList.toggle('hidden')
-}
-
-
-function selectOption(option) {
-  dropdownSelected.textContent = option[1]
-  dropdownMenu.classList.add('hidden')
-  moveToBoundingBox(map, option[2])
-}
-
-
-window.toggleDropdown = toggleDropdown
-window.selectOption = selectOption
-
-window.addEventListener('click', (e) => {
-  if (!dropdownButton.contains(e.target) && !dropdownMenu.contains(e.target)) {
-    dropdownMenu.classList.add('hidden')
+dropdownStateList.addEventListener('click', (e) => {
+  if (currentLayer) {
+    map.removeLayer(currentLayer)
   }
+
+  dropdownStateListWrapper.classList.add('hidden')
+  searchBox.value = ''
+
+  const tmpState = stateList.filter((state) => state.id === parseInt(e.target.id))
+
+  if (tmpState.length === 1) {
+    observedSelectedState.value = tmpState[0]
+    moveToBoundingBox(map, tmpState[0].bbox)
+  }
+})
+
+
+dropdownStateListButton.addEventListener('click', (e) => {
+  toggleStateListDropdown()
 })
 
 
@@ -501,9 +500,3 @@ window.addEventListener('popstate', (event) => {
     updateScreen('home')
   }
 })
-
-
-// Attach the resize event listener, but ensure proper function reference
-window.addEventListener('resize', handleWindowSize)
-
-// Trigger the function initially to handle the initial screen size
