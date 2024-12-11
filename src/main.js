@@ -437,7 +437,7 @@ const fetchSuggestions = async (query) => {
   }
 
   try {
-    const response = await fetch(`https://api.oklabflensburg.de/administrative/v1/municipality/search?query=${query}`)
+    const response = await fetch(`http://localhost:8000/administrative/v1/municipality/search?query=${query}`)
 
     if (!response.ok) {
       throw new Error('Error fetching suggestions')
